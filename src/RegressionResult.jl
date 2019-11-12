@@ -5,7 +5,7 @@ struct RegressionResult <: RegressionModel
 
     coefnames::Vector       # Name of coefficients
     yname::Symbol           # Name of dependent variable
-    formula::Formula        # Original formula 
+    formula::FormulaTerm        # Original formula
 
     nobs::Int64             # Number of observations
     dof_residual::Int64      # degrees of freedoms
@@ -18,20 +18,20 @@ struct RegressionResult <: RegressionModel
     # p::Float64              # p value for the F statistics
 end
 
-nobs(x::RegressionResult) = x.nobs
-coef(x::RegressionResult) = x.coef
-coefnames(x::RegressionResult) = x.coefnames
-vcov(x::RegressionResult) = x.vcov
-dof_residual(x::RegressionResult) = x.dof_residual
+StatsBase.nobs(x::RegressionResult) = x.nobs
+StatsBase.coef(x::RegressionResult) = x.coef
+StatsBase.coefnames(x::RegressionResult) = x.coefnames
+StatsBase.vcov(x::RegressionResult) = x.vcov
+StatsBase.dof_residual(x::RegressionResult) = x.dof_residual
 
-function confint(x::RegressionResult) 
+function StatsBase.confint(x::RegressionResult)
     scale = quantile(TDist(x.dof_residual), 1 - (1-0.95)/2)
     se = stderror(x)
     hcat(x.coef -  scale * se, x.coef + scale * se)
 end
 
 # Display Results
-function title(::RegressionResult) 
+function title(::RegressionResult)
     "Generalized Linear Fixed Effects Model"
 end
 
@@ -41,6 +41,7 @@ end
 
 top(x::RegressionResult) = [
             "Number of obs" sprint(show, nobs(x), context = :compact => true);
+            "Degrees of freedom" sprint(show, nobs(x) - dof_residual(x), context = :compact => true);
             ]
 
 function coeftable(x::RegressionResult)
@@ -65,12 +66,12 @@ function coeftable(x::RegressionResult)
         ["$(coefnms[i])" for i = 1:length(cc)], 4, ctitle, ctop)
 end
 
-function Base.show(io::IO, x::RegressionResult) 
+function Base.show(io::IO, x::RegressionResult)
     show(io, coeftable(x))
 end
 
 
-## Coeftalble2 is a modified Coeftable allowing for a top String matrix displayed before the coefficients. 
+## Coeftalble2 is a modified Coeftable allowing for a top String matrix displayed before the coefficients.
 ## Pull request: https://github.com/JuliaStats/StatsBase.jl/pull/119
 
 struct CoefTable2
@@ -80,7 +81,7 @@ struct CoefTable2
     pvalcol::Integer
     title::AbstractString
     top::Matrix{AbstractString}
-    function CoefTable2(mat::Matrix,colnms::Vector,rownms::Vector,pvalcol::Int=0, 
+    function CoefTable2(mat::Matrix,colnms::Vector,rownms::Vector,pvalcol::Int=0,
                         title::AbstractString = "", top::Matrix = Any[])
         nr,nc = size(mat)
         0 <= pvalcol <= nc || error("pvalcol = $pvalcol should be in 0,...,$nc]")
@@ -99,7 +100,7 @@ end
 
 
 function Base.show(io::IO, ct::CoefTable2)
-    mat = ct.mat; nr,nc = size(mat); rownms = ct.rownms; colnms = ct.colnms; 
+    mat = ct.mat; nr,nc = size(mat); rownms = ct.rownms; colnms = ct.colnms;
     pvc = ct.pvalcol; title = ct.title;   top = ct.top
     if length(rownms) == 0
         rownms = AbstractString[lpad("[$i]",floor(Integer, log10(nr))+3) for i in 1:nr]
@@ -128,8 +129,8 @@ function Base.show(io::IO, ct::CoefTable2)
     end
     widths .+= 1
     totalwidth = sum(widths) + rnwidth
-    if length(title) > 0 
-        halfwidth = div(totalwidth - length(title), 2) 
+    if length(title) > 0
+        halfwidth = div(totalwidth - length(title), 2)
         println(io, " " ^ halfwidth * string(title) * " " ^ halfwidth)
     end
     if length(top) > 0
@@ -137,7 +138,7 @@ function Base.show(io::IO, ct::CoefTable2)
             top[i, 1] = top[i, 1] * ":"
         end
         println(io, "=" ^totalwidth)
-        halfwidth = div(totalwidth, 2) - 1 
+        halfwidth = div(totalwidth, 2) - 1
         interwidth = 2 +  mod(totalwidth, 2)
         for i in 1:(div(size(top, 1) - 1, 2)+1)
             print(io, top[2*i-1, 1])
@@ -150,10 +151,10 @@ function Base.show(io::IO, ct::CoefTable2)
             println(io)
         end
     end
-    println("=" ^totalwidth)
+    println(io,"=" ^totalwidth)
     println(io," " ^ rnwidth *
             join([lpad(string(colnms[i]), widths[i]) for i = 1:nc], ""))
-    println("-" ^totalwidth)
+    println(io,"-" ^totalwidth)
     for i in 1:nr
         print(io, rownms[i])
         for j in 1:nc
@@ -161,5 +162,5 @@ function Base.show(io::IO, ct::CoefTable2)
         end
         println(io)
     end
-    println("=" ^totalwidth)
+    println(io,"=" ^totalwidth)
 end
