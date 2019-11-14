@@ -37,7 +37,7 @@ module Alpaca
     include("feglm.jl")
 
     # instantiate R's alpaca package
-    R"if(\"alpaca\" %in% rownames(installed.packages()) == FALSE) {install.packages(\"alpaca\")}"
-    R"if(\"formula.tools\" %in% rownames(installed.packages()) == FALSE) {install.packages(\"formula.tools\")}"
+    # R"if(\"alpaca\" %in% rownames(installed.packages()) == FALSE) {install.packages(\"alpaca\")}"
+    # R"if(\"formula.tools\" %in% rownames(installed.packages()) == FALSE) {install.packages(\"formula.tools\")}"
 
 end
