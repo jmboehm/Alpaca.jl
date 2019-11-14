@@ -16,9 +16,11 @@ function feglm(df::AbstractDataFrame, f::FormulaTerm,
     fe::Union{Symbol, Expr, Nothing} = nothing,
     vcov::Union{Symbol, Expr, Nothing} = :(simple()),
     start::Union{Vector{T}, Nothing} = nothing,
-    maxiter::Integer = 10000, trace::Integer = 0,
+    maxiter::Integer = 10000, limit::Integer = 10,
+    trace::Integer = 0,
+    convtol::Real = 1.0e-06,
     devtol::Real = 1.0e-08, steptol::Real = 1.0e-08,
-    pseudotol::Real = 1.0e-05, rhotol::Real = 1.0e-04,
+    centertol::Real = 1.0e-05, rhotol::Real = 1.0e-04,
     droppc::Bool = true
    ) where T<:Real
 
@@ -66,29 +68,43 @@ function feglm(df::AbstractDataFrame, f::FormulaTerm,
         R"start <- NULL"
     end
 
+    cluster = false
     if vcov == :(simple())
-        R"type <- c(\"empirical.hessian\")"
+        R"type <- c(\"hessian\")"
         R"str_vcov_formula <- NULL"
     elseif vcov == :robust
         R"type <- c(\"sandwich\")"
         R"str_vcov_formula <- NULL"
     elseif typeof(vcov) == Expr
         (vcov.args[1] == :cluster) || error("Invalid vcov argument.")
+        cluster = true
         if isa(vcov.args[2],Symbol)
-            str_vcov_formula = [String(vcov.args[2])]
+            clusterstring = string(vcov.args[2])
+            fstring = " ~ $(clusterstring)"
+            @rput fstring
+            @rput clusterstring
+            R"vcov_f <- as.formula(fstring)"
+            # vcov_f = @formula(String(vcov.args[2]))
+            # str_vcov_formula = [String(vcov.args[2])]
         else
             (vcov.args[2].args[1] == :+) || error("Cluster formula specification invalid.")
-            str_vcov_formula = String.(vcov.args[2].args[2:end])
+            clusterstring = string(vcov.args[2])
+            fstring = " ~ $(clusterstring)"
+            @rput fstring
+            @rput clusterstring
+            R"vcov_f <- as.formula(fstring)"
+            # vcov_f = @formula( ~ String.(vcov.args[2].args[2:end]))
+            # str_vcov_formula = String.(vcov.args[2].args[2:end])
         end
         R"type <- c(\"clustered\")"
-        @show str_vcov_formula
-        @rput str_vcov_formula
+        # @show str_vcov_formula
+        # @rput str_vcov_formula
     else
         error("Invalid vcov argument.")
     end
 
-
     @rput trace
+    @rput limit
 
     # move objects to R
     r_df = robject(df)
@@ -99,6 +115,9 @@ function feglm(df::AbstractDataFrame, f::FormulaTerm,
     # Julia's formulae don't have the FE added.
     # Do this, then remove all brackets (alpaca doesn't like them)
     R"fstr <- as.character(update(f, paste(\"~ . |\",fe_str ) ) )"
+    if cluster
+        R"fstr <- as.character(update(f, paste(\"~ . |\",fe_str, \" |\" ,clusterstring ) ) )"
+    end
     R"fstr <- gsub(\"(\", \"\", fstr, fixed=TRUE)"
     R"fstr <- gsub(\")\", \"\", fstr, fixed=TRUE)"
     R"f <- as.formula(fstr)"
@@ -108,19 +127,31 @@ function feglm(df::AbstractDataFrame, f::FormulaTerm,
     f_str = @rget f_string
     println("Running alpaca with formula: $f_str")
 
-    R"ctrl <- feglm.control(step.tol = $steptol, dev.tol = $devtol,
-                           pseudo.tol = $pseudotol, rho.tol = $rhotol,
-                           iter.max = $maxiter, trace = trace,
-                           drop.pc = $droppc)"
+    R"feglmControl(dev.tol = $devtol,
+       center.tol = $centertol, rho.tol = $rhotol,
+       conv.tol = $convtol,
+       iter.max = $maxiter, limit = limit,
+       trace = trace,
+       drop.pc = $droppc)"
+
+    # R"ctrl <- feglm.control(step.tol = $steptol, dev.tol = $devtol,
+    #       pseudo.tol = $pseudotol, rho.tol = $rhotol,
+    #       iter.max = $maxiter, trace = $trace,
+    #       drop.pc = $droppc)"
+
     R"result <- feglm(formula =  f , data = $r_df,
             family = fam , beta.start = start,
             control = ctrl)"
 
-    output = R"sum <- summary(result, type = type,
-           cluster.vars = str_vcov_formula)"
+    if cluster
+        output = R"sum <- summary(result, type = type, cluster = vcov_f)"
+        R"vcov <- vcov(result, type = type, cluster = vcov_f )"
+    else
+        output = R"sum <- summary(result, type = type)"
+        R"vcov <- vcov(result, type = type )"
+    end
     println(output)
 
-    R"vcov <- vcov(result, type = type, cluster.vars = str_vcov_formula )"
     R"coefnames <- names(coef(result))"
     R"yname <- all.vars(result[[\"formula\"]])[1]"
     R"nobs <- result[[\"nobs\"]]"
@@ -141,12 +172,17 @@ function feglm(df::AbstractDataFrame, f::FormulaTerm,
     vcov = isa(vcov, Array) ? vcov : vcov .+ zeros(Float64,1,1)
     coefnames = isa(coefnames, Vector) ? coefnames : [coefnames]
 
+    # @show lvlsk
+    # @show nobs
+    # @show coef
+    # @show vcov
+
     rr = RegressionResult(coef,
         vcov,
         coefnames,
         Symbol(yname),
         f,
-        nobs, nobs - sum(lvlsk)
+        nobs[4], sum(lvlsk)
     )
 
    return rr
@@ -173,7 +209,7 @@ function feglm(df::AbstractDataFrame, formula::String, family::String;
     a = @rget mod
 
     if vcov == :(simple())
-        R"type <- c(\"empirical.hessian\")"
+        R"type <- c(\"hessian\")"
         R"str_vcov_formula <- NULL"
     elseif vcov == :robust
         R"type <- c(\"sandwich\")"
@@ -210,7 +246,7 @@ function feglm(df::AbstractDataFrame, formula::String, family::String;
     @rget result
     @rget vcov
 
-    coef = a[:coefficients]
+    coef = result[:coefficients]
     coef = isa(coef, Vector) ? coef : [coef]
     # this is a bit hacky...
     vcov = isa(vcov, Array) ? vcov : vcov .+ zeros(Float64,1,1)
@@ -221,7 +257,7 @@ function feglm(df::AbstractDataFrame, formula::String, family::String;
         coefnames,
         Symbol(yname),
         @formula(y ~ x),
-        nobs, nobs - sum(lvlsk)
+        nobs[4], sum(lvlsk)
     )
 
    return rr
