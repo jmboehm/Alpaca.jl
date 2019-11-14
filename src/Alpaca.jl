@@ -9,7 +9,6 @@ module Alpaca
     using Base
     using Statistics
     using RCall
-    using JLD2
     using DataFrames
     using Distributions
     using Printf
