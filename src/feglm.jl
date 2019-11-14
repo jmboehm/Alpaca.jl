@@ -127,7 +127,7 @@ function feglm(df::AbstractDataFrame, f::FormulaTerm,
     f_str = @rget f_string
     println("Running alpaca with formula: $f_str")
 
-    R"feglmControl(dev.tol = $devtol,
+    R"ctrl <- feglmControl(dev.tol = $devtol,
        center.tol = $centertol, rho.tol = $rhotol,
        conv.tol = $convtol,
        iter.max = $maxiter, limit = limit,
