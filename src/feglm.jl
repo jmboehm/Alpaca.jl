@@ -1,36 +1,36 @@
 
 # todo:
-#    
+#
 
 # requires the followin R packages installed:
-#   alpaca 
+#   alpaca
 #   formula.tools
 
+#
+# function feglm(df::AbstractDataFrame, m::Model; kwargs...)
+#     feglm(df, m.f; m.dict..., kwargs...)
+# end
 
-function feglm(df::AbstractDataFrame, m::Model; kwargs...)
-    feglm(df, m.f; m.dict..., kwargs...)
-end
-
-function feglm(df::AbstractDataFrame, f::Formula, 
+function feglm(df::AbstractDataFrame, f::FormulaTerm,
     family::UnivariateDistribution;
     fe::Union{Symbol, Expr, Nothing} = nothing,
     vcov::Union{Symbol, Expr, Nothing} = :(simple()),
     start::Union{Vector{T}, Nothing} = nothing,
     maxiter::Integer = 10000, trace::Integer = 0,
-    devtol::Real = 1.0e-08, steptol::Real = 1.0e-08, 
+    devtol::Real = 1.0e-08, steptol::Real = 1.0e-08,
     pseudotol::Real = 1.0e-05, rhotol::Real = 1.0e-04,
     droppc::Bool = true
    ) where T<:Real
 
     # Check fixed effect formula and construct string
     feformula = fe
-    fe_str = "" 
+    fe_str = ""
     has_absorb = feformula != nothing
     if has_absorb
         # check depth 1 symbols in original formula are all CategoricalVector
         if isa(feformula, Symbol)
             x = feformula
-            !isa(df[x], CategoricalVector) && error("$x should be CategoricalVector")
+            !isa(df[!,x], CategoricalVector) && error("$x should be CategoricalVector")
             fe_str = String(fe)
         elseif feformula.args[1] == :+
             x = feformula.args
@@ -45,7 +45,7 @@ function feglm(df::AbstractDataFrame, f::Formula,
     R"library(alpaca)"
     R"library(formula.tools)"
 
-    # Check family 
+    # Check family
     if family == Binomial()
         R"fam <- binomial()"
     elseif family == Normal()
@@ -56,7 +56,7 @@ function feglm(df::AbstractDataFrame, f::Formula,
         R"fam <- inverse.gaussian()"
     elseif family == Poisson()
         R"fam <- poisson()"
-    else 
+    else
         error("Family not supported.")
     end
 
@@ -72,11 +72,11 @@ function feglm(df::AbstractDataFrame, f::Formula,
     elseif vcov == :robust
         R"type <- c(\"sandwich\")"
         R"str_vcov_formula <- NULL"
-    elseif typeof(vcov) == Expr 
+    elseif typeof(vcov) == Expr
         (vcov.args[1] == :cluster) || error("Invalid vcov argument.")
         if isa(vcov.args[2],Symbol)
             str_vcov_formula = [String(vcov.args[2])]
-        else 
+        else
             (vcov.args[2].args[1] == :+) || error("Cluster formula specification invalid.")
             str_vcov_formula = String.(vcov.args[2].args[2:end])
         end
@@ -86,17 +86,17 @@ function feglm(df::AbstractDataFrame, f::Formula,
     else
         error("Invalid vcov argument.")
     end
-    
 
-    @rput trace 
+
+    @rput trace
 
     # move objects to R
     r_df = robject(df)
     r_f = robject(f)
     @rput f
     @rput fe_str
-    
-    # Julia's formulae don't have the FE added. 
+
+    # Julia's formulae don't have the FE added.
     # Do this, then remove all brackets (alpaca doesn't like them)
     R"fstr <- as.character(update(f, paste(\"~ . |\",fe_str ) ) )"
     R"fstr <- gsub(\"(\", \"\", fstr, fixed=TRUE)"
@@ -109,14 +109,14 @@ function feglm(df::AbstractDataFrame, f::Formula,
     println("Running alpaca with formula: $f_str")
 
     R"ctrl <- feglm.control(step.tol = $steptol, dev.tol = $devtol,
-                           pseudo.tol = $pseudotol, rho.tol = $rhotol, 
+                           pseudo.tol = $pseudotol, rho.tol = $rhotol,
                            iter.max = $maxiter, trace = trace,
                            drop.pc = $droppc)"
-    R"result <- feglm(formula =  f , data = $r_df, 
+    R"result <- feglm(formula =  f , data = $r_df,
             family = fam , beta.start = start,
             control = ctrl)"
 
-    output = R"sum <- summary(result, type = type, 
+    output = R"sum <- summary(result, type = type,
            cluster.vars = str_vcov_formula)"
     println(output)
 
@@ -146,16 +146,17 @@ function feglm(df::AbstractDataFrame, f::Formula,
         coefnames,
         Symbol(yname),
         f,
-        nobs, nobs - lvlsk
+        nobs, nobs - sum(lvlsk)
     )
 
    return rr
-    
+
 
 end
 
 # Interface with strings. Hacky, and a temporary solution.
-function feglm(df::AbstractDataFrame, formula::String, family::String)
+function feglm(df::AbstractDataFrame, formula::String, family::String;
+    vcov::Union{Symbol, Expr, Nothing} = :(simple()))
 
     # load alpaca in R
     R"library(alpaca)"
@@ -165,10 +166,65 @@ function feglm(df::AbstractDataFrame, formula::String, family::String)
     R"f <- as.formula(formula)"
 
     # run it
-    R"mod <- feglm(formula =  f , data = $r_df, family = binomial())"
+    #println("Running feglm")
+    R"result <- feglm(formula =  f , data = $r_df, family = binomial())"
 
     # return output
     a = @rget mod
+
+    if vcov == :(simple())
+        R"type <- c(\"empirical.hessian\")"
+        R"str_vcov_formula <- NULL"
+    elseif vcov == :robust
+        R"type <- c(\"sandwich\")"
+        R"str_vcov_formula <- NULL"
+    elseif typeof(vcov) == Expr
+        (vcov.args[1] == :cluster) || error("Invalid vcov argument.")
+        if isa(vcov.args[2],Symbol)
+            str_vcov_formula = [String(vcov.args[2])]
+        else
+            (vcov.args[2].args[1] == :+) || error("Cluster formula specification invalid.")
+            str_vcov_formula = String.(vcov.args[2].args[2:end])
+        end
+        R"type <- c(\"clustered\")"
+        @show str_vcov_formula
+        @rput str_vcov_formula
+    else
+        error("Invalid vcov argument.")
+    end
+
+    output = R"sum <- summary(result, type = type,
+           cluster.vars = str_vcov_formula)"
+    println(output)
+
+    R"vcov <- vcov(result, type = type, cluster.vars = str_vcov_formula )"
+    R"coefnames <- names(coef(result))"
+    R"yname <- all.vars(result[[\"formula\"]])[1]"
+    R"nobs <- result[[\"nobs\"]]"
+    R"lvlsk <- result[[\"lvls.k\"]]"
+    @rget coefnames
+    @rget yname
+    @rget nobs
+    @rget lvlsk
+
+    @rget result
+    @rget vcov
+
+    coef = a[:coefficients]
+    coef = isa(coef, Vector) ? coef : [coef]
+    # this is a bit hacky...
+    vcov = isa(vcov, Array) ? vcov : vcov .+ zeros(Float64,1,1)
+    coefnames = isa(coefnames, Vector) ? coefnames : [coefnames]
+
+    rr = RegressionResult(coef,
+        vcov,
+        coefnames,
+        Symbol(yname),
+        @formula(y ~ x),
+        nobs, nobs - sum(lvlsk)
+    )
+
+   return rr
 
 end
 

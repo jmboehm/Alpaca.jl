@@ -5,16 +5,17 @@ module Alpaca
     ## Dependencies
     ##
     ##############################################################################
-    
+
+    using Base
+    using Statistics
     using RCall
     using JLD2
     using DataFrames
     using Distributions
-    using StatsBase: CoefTable, StatisticalModel, RegressionModel
-    import Printf: @sprintf
-    import DataFrames: DataFrame, AbstractDataFrame, completecases, names!, ismissing
-    import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderror, confint, fit, CoefTable, dof_residual,  df_residual, r2, adjr2, deviance, mss, rss, islinear, response
-    import StatsModels: @formula,  Formula, ModelFrame, ModelMatrix, Terms, coefnames, evalcontrasts, check_non_redundancy!
+    using Printf
+    import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var,
+        RegressionModel, model_response, stderror, confint, fit, CoefTable,
+        dof_residual, r2, adjr2, deviance, mss, rss, islinear, response
     using Reexport
     @reexport using StatsBase
     @reexport using StatsModels
@@ -25,19 +26,19 @@ module Alpaca
     ##
     ##############################################################################
 
-    export feglm,
-    Model,
-    @model
+    export feglm
 
     ##############################################################################
     ##
     ## Load files
     ##
     ##############################################################################
-    
-    include("model.jl")
+
     include("RegressionResult.jl")
     include("feglm.jl")
 
+    # instantiate R's alpaca package
+    R"if(\"alpaca\" %in% rownames(installed.packages()) == FALSE) {install.packages(\"alpaca\")}"
+    R"if(\"formula.tools\" %in% rownames(installed.packages()) == FALSE) {install.packages(\"formula.tools\")}"
 
 end
