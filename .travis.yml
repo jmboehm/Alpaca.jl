@@ -29,7 +29,7 @@ before_install:
   # but no permalink to release download
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then wget "https://cran.rstudio.com/bin/macosx/$(wget -qO- https://cran.rstudio.com/bin/macosx/ | sed -n 's/.*href="\(R-[^"]*.pkg\)".*/\1/p' | head -n 1)"; fi
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo installer -pkg R-*.pkg -target /; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo Rscript -e 'install.packages("alpaca", repos="http://cran.us.r-project.org")'
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo Rscript -e 'install.packages("formula.tools", repos="http://cran.us.r-project.org")'
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo Rscript -e 'install.packages("alpaca", repos="https://cran.rstudio.com")' ; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo Rscript -e 'install.packages("formula.tools", repos="https://cran.rstudio.com")' ; fi
 after_success:
   - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
