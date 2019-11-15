@@ -191,78 +191,78 @@ function feglm(df::AbstractDataFrame, f::FormulaTerm,
 end
 
 # Interface with strings. Hacky, and a temporary solution.
-function feglm(df::AbstractDataFrame, formula::String, family::String;
-    vcov::Union{Symbol, Expr, Nothing} = :(simple()))
-
-    # load alpaca in R
-    R"library(alpaca)"
-
-    r_df = robject(df)
-    @rput formula
-    R"f <- as.formula(formula)"
-
-    # run it
-    #println("Running feglm")
-    R"result <- feglm(formula =  f , data = $r_df, family = binomial())"
-
-    # return output
-    a = @rget mod
-
-    if vcov == :(simple())
-        R"type <- c(\"hessian\")"
-        R"str_vcov_formula <- NULL"
-    elseif vcov == :robust
-        R"type <- c(\"sandwich\")"
-        R"str_vcov_formula <- NULL"
-    elseif typeof(vcov) == Expr
-        (vcov.args[1] == :cluster) || error("Invalid vcov argument.")
-        if isa(vcov.args[2],Symbol)
-            str_vcov_formula = [String(vcov.args[2])]
-        else
-            (vcov.args[2].args[1] == :+) || error("Cluster formula specification invalid.")
-            str_vcov_formula = String.(vcov.args[2].args[2:end])
-        end
-        R"type <- c(\"clustered\")"
-        @show str_vcov_formula
-        @rput str_vcov_formula
-    else
-        error("Invalid vcov argument.")
-    end
-
-    output = R"sum <- summary(result, type = type,
-           cluster.vars = str_vcov_formula)"
-    println(output)
-
-    R"vcov <- vcov(result, type = type, cluster.vars = str_vcov_formula )"
-    R"coefnames <- names(coef(result))"
-    R"yname <- all.vars(result[[\"formula\"]])[1]"
-    R"nobs <- result[[\"nobs\"]]"
-    R"lvlsk <- result[[\"lvls.k\"]]"
-    @rget coefnames
-    @rget yname
-    @rget nobs
-    @rget lvlsk
-
-    @rget result
-    @rget vcov
-
-    coef = result[:coefficients]
-    coef = isa(coef, Vector) ? coef : [coef]
-    # this is a bit hacky...
-    vcov = isa(vcov, Array) ? vcov : vcov .+ zeros(Float64,1,1)
-    coefnames = isa(coefnames, Vector) ? coefnames : [coefnames]
-
-    rr = RegressionResult(coef,
-        vcov,
-        coefnames,
-        Symbol(yname),
-        @formula(y ~ x),
-        nobs[4], sum(lvlsk)
-    )
-
-   return rr
-
-end
+# function feglm(df::AbstractDataFrame, formula::String, family::String;
+#     vcov::Union{Symbol, Expr, Nothing} = :(simple()))
+#
+#     # load alpaca in R
+#     R"library(alpaca)"
+#
+#     println("Formula")
+#     r_df = robject(df)
+#     @rput formula
+#     R"f <- as.formula(formula)"
+#
+#     # run it
+#     println("Running feglm")
+#     R"result <- feglm(formula =  f , data = $r_df, family = binomial())"
+#
+#     println("Vcov")
+#     if vcov == :(simple())
+#         R"type <- c(\"hessian\")"
+#         R"str_vcov_formula <- NULL"
+#     elseif vcov == :robust
+#         R"type <- c(\"sandwich\")"
+#         R"str_vcov_formula <- NULL"
+#     elseif typeof(vcov) == Expr
+#         (vcov.args[1] == :cluster) || error("Invalid vcov argument.")
+#         if isa(vcov.args[2],Symbol)
+#             str_vcov_formula = [String(vcov.args[2])]
+#         else
+#             (vcov.args[2].args[1] == :+) || error("Cluster formula specification invalid.")
+#             str_vcov_formula = String.(vcov.args[2].args[2:end])
+#         end
+#         R"type <- c(\"clustered\")"
+#         @show str_vcov_formula
+#         @rput str_vcov_formula
+#     else
+#         error("Invalid vcov argument.")
+#     end
+#
+#     println("summary")
+#     output = R"sum <- summary(result, type = type,
+#            cluster.vars = str_vcov_formula)"
+#     println(output)
+#
+#     R"vcov <- vcov(result, type = type, cluster.vars = str_vcov_formula )"
+#     R"coefnames <- names(coef(result))"
+#     R"yname <- all.vars(result[[\"formula\"]])[1]"
+#     R"nobs <- result[[\"nobs\"]]"
+#     R"lvlsk <- result[[\"lvls.k\"]]"
+#     @rget coefnames
+#     @rget yname
+#     @rget nobs
+#     @rget lvlsk
+#
+#     @rget result
+#     @rget vcov
+#
+#     coef = result[:coefficients]
+#     coef = isa(coef, Vector) ? coef : [coef]
+#     # this is a bit hacky...
+#     vcov = isa(vcov, Array) ? vcov : vcov .+ zeros(Float64,1,1)
+#     coefnames = isa(coefnames, Vector) ? coefnames : [coefnames]
+#
+#     rr = RegressionResult(coef,
+#         vcov,
+#         coefnames,
+#         Symbol(yname),
+#         @formula(y ~ x),
+#         nobs[4], sum(lvlsk)
+#     )
+#
+#    return rr
+#
+# end
 
 macro vcov(args...)
     Expr(:call, :vcov_helper, (esc(Base.Meta.quot(a)) for a in args)...)

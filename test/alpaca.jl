@@ -58,7 +58,7 @@ result = Alpaca.feglm(df, Alpaca.@formula(binary ~ SepalWidth),
 
 
 # string interface (not essential)
-rr1 = Alpaca.feglm(df, "binary ~ SepalWidth | SpeciesDummy", "Binomial")
-@test StatsBase.coef(rr1) ≈ [-0.221486] atol = 1e-4
-rr1 = Alpaca.feglm(df, "binary ~ SepalWidth | SpeciesDummy", "Binomial", vcov = :(cluster(SpeciesDummy)))
-@test StatsBase.stderror(rr1) ≈ [0.317681] atol = 1e-4
+# rr1 = Alpaca.feglm(df, "binary ~ SepalWidth | SpeciesDummy", "Binomial")
+# @test StatsBase.coef(rr1) ≈ [-0.221486] atol = 1e-4
+# rr1 = Alpaca.feglm(df, "binary ~ SepalWidth | SpeciesDummy", "Binomial", vcov = :(cluster(SpeciesDummy)))
+# @test StatsBase.stderror(rr1) ≈ [0.317681] atol = 1e-4
