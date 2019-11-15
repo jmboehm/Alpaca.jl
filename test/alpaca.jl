@@ -23,6 +23,8 @@ result = Alpaca.feglm(df, Alpaca.@formula(binary ~ SepalWidth),
     fe = :SpeciesDummy
     )
 @test StatsBase.coef(result) ≈ [-0.221486] atol = 1e-4
+# testing display of RegressionResult
+@show result
 # with clustering
 # R"mod <- feglm(binary ~ SepalWidth | SpeciesDummy | SpeciesDummy, df, family = binomial())"
 # R"summary(mod, \"cluster\", cluster = ~ SpeciesDummy)"
