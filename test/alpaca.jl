@@ -1,4 +1,5 @@
-using Alpaca, RDatasets, Test, Distributions
+using Alpaca
+using RDatasets, Test, Distributions
 using Random
 
 rng = MersenneTwister(1234)
