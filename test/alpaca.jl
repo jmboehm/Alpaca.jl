@@ -59,6 +59,29 @@ result = Alpaca.feglm(df, Alpaca.@formula(binary ~ SepalWidth),
 @test StatsBase.coef(result) ≈ [-0.153311] atol = 1e-4
 
 
+rng = MersenneTwister(1234)
+N = 1_000_000
+K = 100
+id1 = rand(rng, 1:(round(Int64,N/K)), N)
+id2 = rand(rng, 1:K, N)
+x1 =  randn(rng, N) ./ 10.0
+x2 =  randn(rng, N) ./ 10.0
+y= exp.(3.0 .* x1 .+ 2.0 .* x2 .+ sin.(id1) .+ cos.(id2).^2 .+ randn(rng, N))
+df = DataFrame(id1 = categorical(id1), id2 = categorical(id2), x1 = x1, x2 = x2, y = y)
+df = DataFrame(id1_noncat = id1, id1 = categorical(id1), id2 = categorical(id2), x1 = x1, x2 = x2, y = y)
+
+f = Alpaca.@formula(y ~ x1 + x2)
+result = Alpaca.feglm(df, Alpaca.@formula(y ~ x1 + x2),
+    Poisson(),
+    fe = :id2,
+    start = [0.2;0.2], trace = 2
+    )
+
+
+
+
+
+
 # string interface (not essential)
 # rr1 = Alpaca.feglm(df, "binary ~ SepalWidth | SpeciesDummy", "Binomial")
 # @test StatsBase.coef(rr1) ≈ [-0.221486] atol = 1e-4
