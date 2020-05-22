@@ -8,8 +8,18 @@ Alpaca.jl is currently targeting alpaca 0.3.1.
 
 ## Installation
 
+You need to have R, and Julia of course, preinstalled, but if either is 64-bit the oher needs to match (so e.g. 32-bit julia snap installation may not work, and you'll get ERROR: ... wrong ELF class: ELFCLASS64):
+
 ```
 ] add Alpaca
+
+and in R:
+
+> install.packages('alpaca')
+
+and for usage example below
+
+> install_packages('formula.tools')
 ```
 
 ## Usage
