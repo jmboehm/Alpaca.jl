@@ -16,6 +16,10 @@ You need to have R, and Julia of course, preinstalled, but if either is 64-bit t
 and in R:
 
 > install.packages('alpaca')
+
+and for usage example below
+
+> install_packages('formula.tools')
 ```
 
 ## Usage
