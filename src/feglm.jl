@@ -2,7 +2,7 @@
 # todo:
 #
 
-# requires the followin R packages installed:
+# requires the following R packages installed:
 #   alpaca
 #   formula.tools
 
