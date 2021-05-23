@@ -37,7 +37,7 @@ function feglm(df::AbstractDataFrame, f::FormulaTerm,
         elseif feformula.args[1] == :+
             x = feformula.args
             for i in 2:length(x)
-                isa(x[i], Symbol) && !isa(df[x[i]], CategoricalVector) && error("$(x[i]) should be CategoricalVector")
+                isa(x[i], Symbol) && !isa(df[!,x[i]], CategoricalVector) && error("$(x[i]) should be CategoricalVector")
                 fe_str = "$fe_str + $(String(x[i]))"
             end
         end

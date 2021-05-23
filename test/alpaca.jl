@@ -2,6 +2,7 @@ using Alpaca
 using RDatasets, Test, Distributions
 using Random
 using StableRNGs
+using CategoricalArrays
 
 rng = StableRNG(1234)
 
