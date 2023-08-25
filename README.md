@@ -2,7 +2,7 @@
 
 # Alpaca.jl
 
-Julia wrapper for the [alpaca R library](https://github.com/amrei-stammann/alpaca) to estimate generalized linear model with high-dimensional fixed effects.
+Julia wrapper for the GPLv3-licenced [alpaca R library](https://github.com/amrei-stammann/alpaca) to estimate generalized linear model with high-dimensional fixed effects.
 
 Alpaca.jl is currently targeting alpaca 0.3.3.
 
